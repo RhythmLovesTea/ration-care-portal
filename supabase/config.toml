@@ -1,1 +1,19 @@
 project_id = "hohwkuiulgnnkrtgsydn"
+
+[functions.beneficiary-data]
+verify_jwt = false
+
+[functions.submit-complaint]
+verify_jwt = false
+
+[functions.admin-shops]
+verify_jwt = false
+
+[functions.admin-alerts]
+verify_jwt = false
+
+[functions.resolve-complaint]
+verify_jwt = false
+
+[functions.chatbot]
+verify_jwt = false

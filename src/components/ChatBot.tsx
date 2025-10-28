@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([
     { role: "bot", content: "Hello! How can I assist you today? मैं आपकी कैसे मदद कर सकता हूं?" },
   ]);
@@ -18,21 +20,18 @@ export const ChatBot = () => {
     const userMessage = { role: "user", content: message };
     setMessages((prev) => [...prev, userMessage]);
     setMessage("");
+    setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/chatbot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+      const { data, error } = await supabase.functions.invoke('chatbot', {
+        body: { message: message },
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
+      if (error) throw error;
 
-      const data = await response.json();
       setMessages((prev) => [...prev, { role: "bot", content: data.response }]);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Chatbot error:', error);
       toast({
         title: "Error",
         description: "Unable to connect to chatbot. Please try again later.",
@@ -42,6 +41,8 @@ export const ChatBot = () => {
         ...prev,
         { role: "bot", content: "I'm having trouble connecting right now. Please try again later." },
       ]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -101,11 +102,12 @@ export const ChatBot = () => {
               <Input
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                onKeyPress={(e) => e.key === "Enter" && !isLoading && handleSendMessage()}
                 placeholder="Type your message..."
                 className="flex-1"
+                disabled={isLoading}
               />
-              <Button onClick={handleSendMessage} size="icon" variant="default">
+              <Button onClick={handleSendMessage} size="icon" variant="default" disabled={isLoading}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>

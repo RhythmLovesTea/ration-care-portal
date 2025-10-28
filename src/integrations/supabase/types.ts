@@ -14,16 +14,251 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          severity: string
+          shop_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          severity: string
+          shop_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          severity?: string
+          shop_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      complaints: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          image_url?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      entitlements: {
+        Row: {
+          created_at: string
+          id: string
+          month: number
+          rice_total: number
+          rice_used: number
+          sugar_total: number
+          sugar_used: number
+          user_id: string
+          wheat_total: number
+          wheat_used: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month: number
+          rice_total?: number
+          rice_used?: number
+          sugar_total?: number
+          sugar_used?: number
+          user_id: string
+          wheat_total?: number
+          wheat_used?: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: number
+          rice_total?: number
+          rice_used?: number
+          sugar_total?: number
+          sugar_used?: number
+          user_id?: string
+          wheat_total?: number
+          wheat_used?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          aadhaar: string
+          created_at: string
+          id: string
+          name: string
+          phone: string
+        }
+        Insert: {
+          aadhaar: string
+          created_at?: string
+          id: string
+          name: string
+          phone: string
+        }
+        Update: {
+          aadhaar?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
+      shops: {
+        Row: {
+          created_at: string
+          id: string
+          last_updated: string
+          latitude: number | null
+          location: string
+          longitude: number | null
+          name: string
+          rice_stock: number
+          status: string
+          sugar_stock: number
+          wheat_stock: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_updated?: string
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          name: string
+          rice_stock?: number
+          status?: string
+          sugar_stock?: number
+          wheat_stock?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_updated?: string
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          name?: string
+          rice_stock?: number
+          status?: string
+          sugar_stock?: number
+          wheat_stock?: number
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          fps_name: string
+          fps_shop_id: string | null
+          id: string
+          item_type: string
+          transaction_date: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          fps_name: string
+          fps_shop_id?: string | null
+          id?: string
+          item_type: string
+          transaction_date?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          fps_name?: string
+          fps_shop_id?: string | null
+          id?: string
+          item_type?: string
+          transaction_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "beneficiary"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +385,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "beneficiary"],
+    },
   },
 } as const
