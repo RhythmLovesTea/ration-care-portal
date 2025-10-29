@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,39 +10,55 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ChatBot } from "@/components/ChatBot";
 import { toast } from "@/hooks/use-toast";
-
-// Dummy data
-const complaints = [
-  {
-    id: "#RT2025001",
-    date: "2025-01-20",
-    subject: "Missing wheat allocation",
-    status: "pending",
-    description: "Did not receive full wheat quantity this month",
-  },
-  {
-    id: "#RT2025002",
-    date: "2025-01-15",
-    subject: "FPS shop closed during hours",
-    status: "resolved",
-    description: "Shop was closed during official operating hours",
-  },
-  {
-    id: "#RT2025003",
-    date: "2025-01-10",
-    subject: "Poor quality rice",
-    status: "pending",
-    description: "Rice quality was substandard",
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Complaints() {
   const [complaintData, setComplaintData] = useState({
     subject: "",
     description: "",
   });
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchComplaints();
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      setIsAdmin(!!data);
+    }
+  };
+
+  const fetchComplaints = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('complaints')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setComplaints(data || []);
+    } catch (error: any) {
+      console.error('Error fetching complaints:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!complaintData.subject || !complaintData.description) {
       toast({
@@ -53,12 +69,49 @@ export default function Complaints() {
       return;
     }
 
-    toast({
-      title: "Complaint Submitted",
-      description: "Your complaint has been registered successfully. Reference ID: #RT2025004",
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-complaint', {
+        body: complaintData
+      });
 
-    setComplaintData({ subject: "", description: "" });
+      if (error) throw error;
+
+      toast({
+        title: "Complaint Submitted",
+        description: `Your complaint has been registered successfully.`,
+      });
+
+      setComplaintData({ subject: "", description: "" });
+      fetchComplaints();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to submit complaint",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResolveComplaint = async (complaintId: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('resolve-complaint', {
+        body: { complaintId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Complaint marked as resolved",
+      });
+      fetchComplaints();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to resolve complaint",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -131,76 +184,85 @@ export default function Complaints() {
               <CardDescription>Track the status of your submitted complaints</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {complaints.map((complaint) => (
-                  <div key={complaint.id} className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-smooth">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-semibold">{complaint.subject}</h4>
-                        <p className="text-xs text-muted-foreground">{complaint.id}</p>
+              {loading ? (
+                <p className="text-center text-muted-foreground">Loading...</p>
+              ) : (
+                <div className="space-y-4">
+                  {complaints.length > 0 ? (
+                    complaints.map((complaint) => (
+                      <div key={complaint.id} className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-smooth">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-semibold">{complaint.subject}</h4>
+                            <p className="text-xs text-muted-foreground">{complaint.id}</p>
+                          </div>
+                          <Badge
+                            variant={complaint.status === "resolved" ? "success" : "warning"}
+                          >
+                            {complaint.status === "resolved" ? (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            ) : (
+                              <Clock className="h-3 w-3 mr-1" />
+                            )}
+                            {complaint.status.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{complaint.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Filed on: {new Date(complaint.created_at).toLocaleDateString()}
+                        </p>
                       </div>
-                      <Badge
-                        variant={complaint.status === "resolved" ? "success" : "warning"}
-                      >
-                        {complaint.status === "resolved" ? (
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                        ) : (
-                          <Clock className="h-3 w-3 mr-1" />
-                        )}
-                        {complaint.status.toUpperCase()}
-                      </Badge>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No complaints filed yet</p>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{complaint.description}</p>
-                    <p className="text-xs text-muted-foreground">Filed on: {complaint.date}</p>
-                  </div>
-                ))}
-
-                {complaints.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No complaints filed yet</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Admin Section (shown conditionally) */}
-        <Card className="mt-8 shadow-sm">
-          <CardHeader>
-            <CardTitle>Admin: Pending Complaints</CardTitle>
-            <CardDescription>Review and resolve beneficiary complaints (Admin Only)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {complaints
-                .filter((c) => c.status === "pending")
-                .map((complaint) => (
-                  <div
-                    key={complaint.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg"
-                  >
-                    <div className="mb-2 sm:mb-0">
-                      <h4 className="font-semibold">{complaint.subject}</h4>
-                      <p className="text-sm text-muted-foreground">{complaint.description}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {complaint.id} • {complaint.date}
-                      </p>
+        {isAdmin && (
+          <Card className="mt-8 shadow-sm">
+            <CardHeader>
+              <CardTitle>Admin: Pending Complaints</CardTitle>
+              <CardDescription>Review and resolve beneficiary complaints (Admin Only)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {complaints
+                  .filter((c) => c.status === "pending")
+                  .map((complaint) => (
+                    <div
+                      key={complaint.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg"
+                    >
+                      <div className="mb-2 sm:mb-0">
+                        <h4 className="font-semibold">{complaint.subject}</h4>
+                        <p className="text-sm text-muted-foreground">{complaint.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {complaint.id} • {new Date(complaint.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="success"
+                          onClick={() => handleResolveComplaint(complaint.id)}
+                        >
+                          Mark Resolved
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="success">
-                        Mark Resolved
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
 
       <Footer />

@@ -1,31 +1,45 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, CheckCircle, XCircle, MapPin, Package } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-
-// Dummy data
-const fpsShops = [
-  { id: 1, name: "FPS Shop #234", location: "Mumbai Central", stock: { rice: 450, wheat: 380, sugar: 120 }, status: "good" },
-  { id: 2, name: "FPS Shop #567", location: "Andheri West", stock: { rice: 120, wheat: 90, sugar: 25 }, status: "low" },
-  { id: 3, name: "FPS Shop #891", location: "Bandra East", stock: { rice: 550, wheat: 480, sugar: 150 }, status: "good" },
-  { id: 4, name: "FPS Shop #432", location: "Dadar", stock: { rice: 50, wheat: 40, sugar: 10 }, status: "critical" },
-];
-
-const fraudAlerts = [
-  { id: 1, shop: "FPS Shop #567", type: "Duplicate Transaction", severity: "high", date: "2025-01-20" },
-  { id: 2, shop: "FPS Shop #432", type: "Stock Mismatch", severity: "medium", date: "2025-01-19" },
-  { id: 3, shop: "FPS Shop #234", type: "Unusual Pattern", severity: "low", date: "2025-01-18" },
-];
-
-const deliveryRoutes = [
-  { id: 1, route: "Route A", vehicle: "MH-01-AB-1234", status: "In Transit", eta: "2 hours" },
-  { id: 2, route: "Route B", vehicle: "MH-02-CD-5678", status: "Delivered", eta: "Completed" },
-  { id: 3, route: "Route C", vehicle: "MH-03-EF-9012", status: "Scheduled", eta: "Tomorrow 9 AM" },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 export default function AdminDashboard() {
+  const [shops, setShops] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAdminData();
+  }, []);
+
+  const fetchAdminData = async () => {
+    try {
+      const [shopsResponse, alertsResponse] = await Promise.all([
+        supabase.functions.invoke('admin-shops'),
+        supabase.functions.invoke('admin-alerts')
+      ]);
+
+      if (shopsResponse.error) throw shopsResponse.error;
+      if (alertsResponse.error) throw alertsResponse.error;
+
+      setShops(shopsResponse.data?.shops || []);
+      setAlerts(alertsResponse.data?.alerts || []);
+    } catch (error: any) {
+      console.error('Error fetching admin data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load admin data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case "good":
@@ -97,31 +111,38 @@ export default function AdminDashboard() {
               <AlertTriangle className="h-5 w-5 text-warning" />
               Fraud Detection Alerts
             </CardTitle>
-            <CardDescription>Recent suspicious activities requiring attention</CardDescription>
+            <CardDescription>AI-powered fraud detection alerts</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {fraudAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-smooth"
-                >
-                  <div className="space-y-1 mb-2 sm:mb-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={getSeverityColor(alert.severity) as any}>{alert.severity.toUpperCase()}</Badge>
-                      <span className="font-semibold">{alert.type}</span>
+            {loading ? (
+              <p className="text-center text-muted-foreground">Loading...</p>
+            ) : (
+              <div className="space-y-3">
+                {alerts.length > 0 ? (
+                  alerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-smooth"
+                    >
+                      <div className="space-y-1 mb-2 sm:mb-0">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getSeverityColor(alert.severity) as any}>{alert.severity.toUpperCase()}</Badge>
+                          <span className="font-semibold">{alert.message}</span>
+                        </div>
+                        {alert.shop_id && <p className="text-sm text-muted-foreground">Shop ID: {alert.shop_id}</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(alert.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">{alert.shop}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{alert.date}</span>
-                    <Button size="sm" variant="outline">
-                      Investigate
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No alerts at this time</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -135,80 +156,71 @@ export default function AdminDashboard() {
             <CardDescription>Real-time inventory monitoring across all shops</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {fpsShops.map((shop) => (
-                <div key={shop.id} className="p-4 border border-border rounded-lg">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-lg">{shop.name}</h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {shop.location}
-                      </p>
+            {loading ? (
+              <p className="text-center text-muted-foreground">Loading...</p>
+            ) : (
+              <div className="space-y-4">
+                {shops.length > 0 ? (
+                  shops.map((shop) => (
+                    <div key={shop.id} className="p-4 border border-border rounded-lg">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-lg">{shop.name}</h3>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {shop.location}
+                          </p>
+                        </div>
+                        <Badge variant={getStatusColor(shop.status) as any}>
+                          {shop.status === "good" && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {shop.status === "critical" && <XCircle className="h-3 w-3 mr-1" />}
+                          {shop.status === "low" && <AlertTriangle className="h-3 w-3 mr-1" />}
+                          {shop.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Rice:</span>
+                          <span className="ml-2 font-semibold">{shop.rice_stock} kg</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Wheat:</span>
+                          <span className="ml-2 font-semibold">{shop.wheat_stock} kg</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Sugar:</span>
+                          <span className="ml-2 font-semibold">{shop.sugar_stock} kg</span>
+                        </div>
+                      </div>
                     </div>
-                    <Badge variant={getStatusColor(shop.status) as any}>
-                      {shop.status === "good" && <CheckCircle className="h-3 w-3 mr-1" />}
-                      {shop.status === "critical" && <XCircle className="h-3 w-3 mr-1" />}
-                      {shop.status === "low" && <AlertTriangle className="h-3 w-3 mr-1" />}
-                      {shop.status.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Rice:</span>
-                      <span className="ml-2 font-semibold">{shop.stock.rice} kg</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Wheat:</span>
-                      <span className="ml-2 font-semibold">{shop.stock.wheat} kg</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Sugar:</span>
-                      <span className="ml-2 font-semibold">{shop.stock.sugar} kg</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No shops found</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Delivery Routes */}
+        {/* Stats Overview */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-secondary" />
-              Delivery Routes
+              System Statistics
             </CardTitle>
-            <CardDescription>Track live delivery status and schedules</CardDescription>
+            <CardDescription>Overview of the distribution system</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {deliveryRoutes.map((route) => (
-                <div
-                  key={route.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg"
-                >
-                  <div>
-                    <h4 className="font-semibold">{route.route}</h4>
-                    <p className="text-sm text-muted-foreground">Vehicle: {route.vehicle}</p>
-                  </div>
-                  <div className="flex items-center gap-3 mt-2 sm:mt-0">
-                    <Badge
-                      variant={
-                        route.status === "Delivered"
-                          ? "success"
-                          : route.status === "In Transit"
-                          ? "warning"
-                          : "secondary"
-                      }
-                    >
-                      {route.status}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">ETA: {route.eta}</span>
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Total Shops:</span>
+                <span className="ml-2 font-semibold">{shops.length}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Active Alerts:</span>
+                <span className="ml-2 font-semibold">{alerts.length}</span>
+              </div>
             </div>
           </CardContent>
         </Card>

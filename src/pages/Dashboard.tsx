@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,25 +18,53 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-
-// Dummy data
-const entitlements = {
-  rice: { total: 25, used: 10, remaining: 15 },
-  wheat: { total: 20, used: 8, remaining: 12 },
-  sugar: { total: 5, used: 2, remaining: 3 },
-};
-
-const transactions = [
-  { id: 1, date: "2025-01-15", type: "Rice", amount: "5 kg", fps: "FPS Shop #234, Mumbai" },
-  { id: 2, date: "2025-01-10", type: "Wheat", amount: "4 kg", fps: "FPS Shop #234, Mumbai" },
-  { id: 3, date: "2025-01-05", type: "Sugar", amount: "1 kg", fps: "FPS Shop #234, Mumbai" },
-  { id: 4, date: "2024-12-28", type: "Rice", amount: "5 kg", fps: "FPS Shop #234, Mumbai" },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const [complaintText, setComplaintText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [entitlements, setEntitlements] = useState({
+    rice: { total: 25, used: 0, remaining: 25 },
+    wheat: { total: 20, used: 0, remaining: 20 },
+    sugar: { total: 5, used: 0, remaining: 5 },
+  });
+  const [transactions, setTransactions] = useState<any[]>([]);
 
-  const handleReportMissing = () => {
+  useEffect(() => {
+    fetchBeneficiaryData();
+  }, []);
+
+  const fetchBeneficiaryData = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('beneficiary-data');
+      
+      if (error) throw error;
+
+      if (data?.entitlements) {
+        const ent = data.entitlements;
+        setEntitlements({
+          rice: { total: ent.rice_total, used: ent.rice_used, remaining: ent.rice_total - ent.rice_used },
+          wheat: { total: ent.wheat_total, used: ent.wheat_used, remaining: ent.wheat_total - ent.wheat_used },
+          sugar: { total: ent.sugar_total, used: ent.sugar_used, remaining: ent.sugar_total - ent.sugar_used },
+        });
+      }
+
+      if (data?.transactions) {
+        setTransactions(data.transactions);
+      }
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load your data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReportMissing = async () => {
     if (!complaintText.trim()) {
       toast({
         title: "Error",
@@ -46,11 +74,25 @@ export default function Dashboard() {
       return;
     }
 
-    toast({
-      title: "Complaint Submitted",
-      description: "Your complaint has been registered. Reference ID: #RT2025001",
-    });
-    setComplaintText("");
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-complaint', {
+        body: { subject: "Missing Ration", description: complaintText }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Complaint Submitted",
+        description: `Your complaint has been registered. Reference ID: ${data.complaint.id}`,
+      });
+      setComplaintText("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to submit complaint",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -157,29 +199,37 @@ export default function Dashboard() {
             <CardDescription>Your recent ration collection records</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {transactions.map((txn) => (
-                <div
-                  key={txn.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-smooth"
-                >
-                  <div className="space-y-1 mb-2 sm:mb-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{txn.type}</Badge>
-                      <span className="font-semibold">{txn.amount}</span>
+            {loading ? (
+              <p className="text-center text-muted-foreground">Loading...</p>
+            ) : (
+              <div className="space-y-4">
+                {transactions.length > 0 ? (
+                  transactions.map((txn) => (
+                    <div
+                      key={txn.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-smooth"
+                    >
+                      <div className="space-y-1 mb-2 sm:mb-0">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{txn.item_type}</Badge>
+                          <span className="font-semibold">{txn.amount} kg</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {txn.fps_name}
+                        </p>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <Calendar className="h-3 w-3 inline mr-1" />
+                        {new Date(txn.transaction_date).toLocaleDateString()}
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {txn.fps}
-                    </p>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    <Calendar className="h-3 w-3 inline mr-1" />
-                    {txn.date}
-                  </div>
-                </div>
-              ))}
-            </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No transactions yet</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
