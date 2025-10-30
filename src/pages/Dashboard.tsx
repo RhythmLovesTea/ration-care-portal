@@ -7,6 +7,9 @@ import { AlertCircle, Calendar, MapPin, FileText } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ChatBot } from "@/components/ChatBot";
+import { DigitalRationCard } from "@/components/DigitalRationCard";
+import { UsageAnalytics } from "@/components/UsageAnalytics";
+import { FPSDetails } from "@/components/FPSDetails";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +32,11 @@ export default function Dashboard() {
     sugar: { total: 5, used: 0, remaining: 5 },
   });
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+  const [householdMembers, setHouseholdMembers] = useState<any[]>([]);
+  const [historicalEntitlements, setHistoricalEntitlements] = useState<any[]>([]);
+  const [shops, setShops] = useState<any[]>([]);
+  const [showFPS, setShowFPS] = useState(false);
 
   useEffect(() => {
     fetchBeneficiaryData();
@@ -36,9 +44,14 @@ export default function Dashboard() {
 
   const fetchBeneficiaryData = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('beneficiary-data');
+      const [beneficiaryData, shopsData] = await Promise.all([
+        supabase.functions.invoke('beneficiary-data'),
+        supabase.from('shops').select('*')
+      ]);
       
-      if (error) throw error;
+      if (beneficiaryData.error) throw beneficiaryData.error;
+
+      const data = beneficiaryData.data;
 
       if (data?.entitlements) {
         const ent = data.entitlements;
@@ -51,6 +64,22 @@ export default function Dashboard() {
 
       if (data?.transactions) {
         setTransactions(data.transactions);
+      }
+
+      if (data?.profile) {
+        setProfile(data.profile);
+      }
+
+      if (data?.householdMembers) {
+        setHouseholdMembers(data.householdMembers);
+      }
+
+      if (data?.historicalEntitlements) {
+        setHistoricalEntitlements(data.historicalEntitlements);
+      }
+
+      if (shopsData.data) {
+        setShops(shopsData.data);
       }
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -147,6 +176,20 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* Digital Ration Card */}
+        {profile && (
+          <div className="mb-8">
+            <DigitalRationCard profile={profile} householdMembers={householdMembers} />
+          </div>
+        )}
+
+        {/* Usage Analytics */}
+        {historicalEntitlements.length > 0 && (
+          <div className="mb-8">
+            <UsageAnalytics historicalEntitlements={historicalEntitlements} />
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-8">
           <Dialog>
@@ -181,9 +224,13 @@ export default function Dashboard() {
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" size="lg">
+          <Button 
+            variant="outline" 
+            size="lg"
+            onClick={() => setShowFPS(!showFPS)}
+          >
             <MapPin className="mr-2 h-5 w-5" />
-            Find Nearby FPS
+            {showFPS ? 'Hide' : 'View'} FPS Shops
           </Button>
 
           <Button variant="outline" size="lg">
@@ -191,6 +238,14 @@ export default function Dashboard() {
             Download Passbook
           </Button>
         </div>
+
+        {/* FPS Shops */}
+        {showFPS && shops.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4">Fair Price Shops</h2>
+            <FPSDetails shops={shops} />
+          </div>
+        )}
 
         {/* Transaction History */}
         <Card className="shadow-sm">

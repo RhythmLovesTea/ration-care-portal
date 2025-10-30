@@ -124,34 +124,107 @@ export type Database = {
         }
         Relationships: []
       }
+      fps_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          rating: number
+          shop_id: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating: number
+          shop_id: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating?: number
+          shop_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fps_ratings_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_members: {
+        Row: {
+          age: number
+          created_at: string | null
+          id: string
+          name: string
+          relationship: string
+          user_id: string
+        }
+        Insert: {
+          age: number
+          created_at?: string | null
+          id?: string
+          name: string
+          relationship: string
+          user_id: string
+        }
+        Update: {
+          age?: number
+          created_at?: string | null
+          id?: string
+          name?: string
+          relationship?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           aadhaar: string
+          card_type: string | null
           created_at: string
           id: string
+          issue_date: string | null
           name: string
           phone: string
+          ration_card_number: string | null
         }
         Insert: {
           aadhaar: string
+          card_type?: string | null
           created_at?: string
           id: string
+          issue_date?: string | null
           name: string
           phone: string
+          ration_card_number?: string | null
         }
         Update: {
           aadhaar?: string
+          card_type?: string | null
           created_at?: string
           id?: string
+          issue_date?: string | null
           name?: string
           phone?: string
+          ration_card_number?: string | null
         }
         Relationships: []
       }
       shops: {
         Row: {
+          contact_number: string | null
           created_at: string
           id: string
+          last_inspection_date: string | null
           last_updated: string
           latitude: number | null
           location: string
@@ -161,10 +234,13 @@ export type Database = {
           status: string
           sugar_stock: number
           wheat_stock: number
+          working_hours: string | null
         }
         Insert: {
+          contact_number?: string | null
           created_at?: string
           id?: string
+          last_inspection_date?: string | null
           last_updated?: string
           latitude?: number | null
           location: string
@@ -174,10 +250,13 @@ export type Database = {
           status?: string
           sugar_stock?: number
           wheat_stock?: number
+          working_hours?: string | null
         }
         Update: {
+          contact_number?: string | null
           created_at?: string
           id?: string
+          last_inspection_date?: string | null
           last_updated?: string
           latitude?: number | null
           location?: string
@@ -187,6 +266,7 @@ export type Database = {
           status?: string
           sugar_stock?: number
           wheat_stock?: number
+          working_hours?: string | null
         }
         Relationships: []
       }
@@ -249,6 +329,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_shop_avg_rating: { Args: { shop_uuid: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

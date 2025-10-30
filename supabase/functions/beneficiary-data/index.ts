@@ -49,19 +49,19 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .eq('month', month)
       .eq('year', year)
-      .single();
+      .maybeSingle();
 
     if (entitlementsError) {
       console.error('Entitlements error:', entitlementsError);
     }
 
-    // Fetch transactions
+    // Fetch transactions (last 6 months for analytics)
     const { data: transactions, error: transactionsError } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
       .order('transaction_date', { ascending: false })
-      .limit(10);
+      .limit(50);
 
     if (transactionsError) {
       console.error('Transactions error:', transactionsError);
@@ -72,10 +72,35 @@ serve(async (req) => {
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
       console.error('Profile error:', profileError);
+    }
+
+    // Fetch household members
+    const { data: householdMembers, error: householdError } = await supabase
+      .from('household_members')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (householdError) {
+      console.error('Household members error:', householdError);
+    }
+
+    // Fetch historical entitlements for analytics (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const { data: historicalEntitlements, error: histError } = await supabase
+      .from('entitlements')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('created_at', sixMonthsAgo.toISOString())
+      .order('year', { ascending: true })
+      .order('month', { ascending: true });
+
+    if (histError) {
+      console.error('Historical entitlements error:', histError);
     }
 
     return new Response(
@@ -87,9 +112,20 @@ serve(async (req) => {
           wheat_used: 0,
           sugar_total: 5,
           sugar_used: 0,
+          month,
+          year
         },
         transactions: transactions || [],
-        profile: profile || {},
+        profile: profile || {
+          name: user.email,
+          aadhaar: '****',
+          phone: '****',
+          ration_card_number: '0000000000000000',
+          card_type: 'APL',
+          issue_date: new Date().toISOString()
+        },
+        householdMembers: householdMembers || [],
+        historicalEntitlements: historicalEntitlements || []
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

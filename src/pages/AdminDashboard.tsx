@@ -7,6 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { AdminAnalytics } from "@/components/AdminAnalytics";
 
 export default function AdminDashboard() {
   const [shops, setShops] = useState<any[]>([]);
@@ -75,6 +76,13 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
           <p className="text-muted-foreground">Monitor FPS shops, deliveries, and fraud alerts</p>
         </div>
+
+        {/* Analytics Dashboard */}
+        {!loading && shops.length > 0 && (
+          <div className="mb-8">
+            <AdminAnalytics shops={shops} alerts={alerts} />
+          </div>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
