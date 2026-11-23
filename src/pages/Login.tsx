@@ -143,6 +143,40 @@ export default function Login() {
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
 
+              <div className="pt-3 border-t border-border/80">
+                <p className="text-xs text-center text-muted-foreground mb-2 font-medium">⚡ 1-Click Demo Access</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-primary/40 hover:bg-primary/10"
+                    onClick={() => {
+                      supabase.auth.signInWithPassword({ email: "sunita.devi@ration.gov.in" }).then(() => {
+                        toast({ title: "Welcome Sunita Devi", description: "Logged into Beneficiary Portal" });
+                        navigate("/dashboard");
+                      });
+                    }}
+                  >
+                    Beneficiary Demo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-primary/40 hover:bg-primary/10"
+                    onClick={() => {
+                      supabase.auth.signInWithPassword({ email: "admin@ration.gov.in" }).then(() => {
+                        toast({ title: "Welcome Officer", description: "Logged into Admin Portal" });
+                        navigate("/admin");
+                      });
+                    }}
+                  >
+                    Admin Demo
+                  </Button>
+                </div>
+              </div>
+
               <p className="text-center text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <button

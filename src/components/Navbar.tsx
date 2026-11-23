@@ -32,12 +32,20 @@ export const Navbar = () => {
               Home
             </Link>
             <Link to="/dashboard" className="text-foreground hover:text-primary transition-smooth">
-              Dashboard
+              Beneficiary
             </Link>
             <Link to="/complaints" className="text-foreground hover:text-primary transition-smooth">
               Complaints
             </Link>
-            <Button variant="outline" size="sm" onClick={toggleLanguage}>
+            <Link to="/admin" className="text-foreground hover:text-primary transition-smooth">
+              Admin Portal
+            </Link>
+            <Link to="/login">
+              <Button variant="outline" size="sm">
+                Login / Switch Demo
+              </Button>
+            </Link>
+            <Button variant="ghost" size="sm" onClick={toggleLanguage}>
               {language}
             </Button>
           </div>
@@ -73,6 +81,20 @@ export const Navbar = () => {
               onClick={() => setIsOpen(false)}
             >
               Complaints
+            </Link>
+            <Link
+              to="/admin"
+              className="block py-2 text-foreground hover:text-primary transition-smooth"
+              onClick={() => setIsOpen(false)}
+            >
+              Admin Portal
+            </Link>
+            <Link
+              to="/login"
+              className="block py-2 text-foreground hover:text-primary transition-smooth"
+              onClick={() => setIsOpen(false)}
+            >
+              Login / Switch Demo
             </Link>
             <Button variant="outline" size="sm" onClick={toggleLanguage} className="w-full">
               Switch to {language === "EN" ? "हिंदी" : "English"}
